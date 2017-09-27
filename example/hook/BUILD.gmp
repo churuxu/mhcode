@@ -1,0 +1,5 @@
+{
+"target":"hook",
+"srcdirs":[".", "../../src"],
+"includes":["../../src"]
+}

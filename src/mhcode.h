@@ -67,6 +67,7 @@ utility function for mechine code, memory address hook etc.
 	it will replace 'codelen' of mechine code in 'targetaddr'
 	replaced code can not be partial of mechine code
 	'codelen' must > 5(x86)	
+	use disassembly tools to known 'codelen' of target
 	*/
 	mhcode_hook_t mhcode_hook_create(void* targetaddr, size_t codelen, hook_function_t func);
 
@@ -87,6 +88,7 @@ utility function for mechine code, memory address hook etc.
 	
 	/** make 'call' mechine code, return writed code len */
 	int mhcode_asm_call(void* codebuf, void* callto);
+
 
 
 #ifdef __cplusplus
