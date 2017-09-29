@@ -8,17 +8,15 @@ extern "C" {
 #endif
 
 
-/*
-utility function for mechine code, memory address hook etc.
-*/
+	/*
+	utility function for mechine code, memory address hook etc.
+	*/
 
 
 
 
-	// ================ memory functions ================
 
-
-//for mhcode_mprotect()
+	//for mhcode_mprotect()
 #ifdef _WIN32
 #define PROT_NONE  0
 #define PROT_READ  1
@@ -39,14 +37,13 @@ utility function for mechine code, memory address hook etc.
 	int mhcode_memcmp(void* mema, void* memb, size_t len);
 
 
-	// ================ hook functions ================
 
 	/** x86 context */
 	typedef struct mhcode_context_x86 {
 		intptr_t edi;
 		intptr_t esi;
 		intptr_t ebp;
-		intptr_t esp;		
+		intptr_t esp;
 		intptr_t ebx;
 		intptr_t edx;
 		intptr_t ecx;
@@ -57,23 +54,19 @@ utility function for mechine code, memory address hook etc.
 	/** context passed to hook_function_t */
 	typedef mhcode_context_x86 mhcode_context;
 
-	/** a hook handle */
-	typedef void* mhcode_hook_t;
-		
-	typedef void (__cdecl *hook_function_t)(void* context);
-	
+	typedef void(__cdecl *mhcode_context_handler)(void* context);
 
-	/** create hook on any address, 
-	it will replace 'codelen' of mechine code in 'targetaddr'
-	replaced code can not be partial of mechine code
-	'codelen' must > 5(x86)	
-	use disassembly tools to known 'codelen' of target
+	/** make a function to call mhcode_context_handler_t and pass current thread context, return writed code len	
+	this codebuf can pass to other hook library	when append code to jmp trampoline
 	*/
-	mhcode_hook_t mhcode_hook_create(void* targetaddr, size_t codelen, hook_function_t func);
+	int mhcode_make_context_handler(void* codebuf, mhcode_context_handler func);
 
-	/** destroy hook */
-	void mhcode_hook_destroy(mhcode_hook_t hook);
-	
+	/** make 'jmp' mechine code, return writed code len */
+	int mhcode_make_jmp(void* codebuf, void* jmpto);
+
+	/** make 'call' mechine code, return writed code len */
+	int mhcode_make_call(void* codebuf, void* callto);
+
 	/** get stack value in hook function */
 	intptr_t mhcode_get_stack_value(void* context, int offset);
 
@@ -81,14 +74,19 @@ utility function for mechine code, memory address hook etc.
 	void mhcode_set_stack_value(void* context, int offset, intptr_t value);
 
 
-	// ================ asm functions ================
 
-	/** make 'jmp' mechine code, return writed code len */
-	int mhcode_asm_jmp(void* codebuf, void* jmpto);
-	
-	/** make 'call' mechine code, return writed code len */
-	int mhcode_asm_call(void* codebuf, void* callto);
+	typedef void* mhcode_hook_t;
 
+	/** create hook on any address,
+	it will replace 'codelen' of mechine code in 'targetaddr'
+	replaced code can not be partial of mechine code
+	'codelen' must > 5(x86)
+	use disassembly tools to known 'codelen' of target
+	*/
+	mhcode_hook_t mhcode_hook_create(void* targetaddr, size_t codelen, mhcode_context_handler func);
+
+	/** destroy hook */
+	void mhcode_hook_destroy(mhcode_hook_t hook);
 
 
 #ifdef __cplusplus

@@ -53,89 +53,29 @@ int mhcode_memcmp(void* mema, void* memb, size_t len) {
 
 
 
-static unsigned char x86_trampoline_[] = {
+const unsigned char x86_handler_trampoline_[] = {
 	0x60,                   // pushad
 	0x9C,                   // pushfd
 	0x8B, 0xC4,             // mov         eax,esp
 	0x83, 0xC0,0x04,        // add         eax,4
 	0x50,                   // push        eax
-	0xE8, 0x90,0x90,0x90,0x90,//call       hook function
+	0xE8, 0x90,0x90,0x90,0x90,//call       context handler function
 	0x58,                   //pop         eax
 	0x9D,                   //popfd
 	0x61,                   //popad
-	0x90,   //target code
-	0xE9, 0x90,0x90,0x90,0x90, //jmp back to target
 };
-const size_t x86_hook_offset_ = 8;
-const size_t x86_origin_offset_ = 16;
+
+const size_t x86_handler_func_offset_ = 8;
+
+#define handler_trampoline_ x86_handler_trampoline_
+#define handler_func_offset_ x86_handler_func_offset_
 
 
-#define trampoline_ x86_trampoline_
-#define hook_offset_ x86_hook_offset_
-#define origin_offset_ x86_origin_offset_
-
-
-typedef struct _mhcode_hook_data {
-	void* target;
-	size_t codelen;	
-	void* trampoline;
-	size_t nop;
-	size_t nop2;
-}mhcode_hook_data;
-
-mhcode_hook_t mhcode_hook_create(void* addr, size_t codelen, hook_function_t func) {
-	mhcode_hook_data* result;
-	void* trampoline;
-	size_t len;
-	if (codelen < 5)return NULL;
-
-	result = mhcode_malloc(sizeof(mhcode_hook_data) + sizeof(trampoline_) + codelen);
-	if (!result) { return NULL; }
-
-	trampoline = (char*)result + sizeof(mhcode_hook_data);
-
-	mhcode_mprotect(addr, codelen, PROT_READ | PROT_WRITE | PROT_EXEC);
-
-	//gen trampoline code
-	memcpy(trampoline, trampoline_, sizeof(trampoline_));
-
-	//1. call hook_function_t
-	mhcode_asm_call((char*)trampoline + hook_offset_, func);
-
-	//2. run code of target
-	memcpy((char*)trampoline + origin_offset_, addr, codelen);
-
-	//3. in end, jmp back to target + codelen
-	mhcode_asm_jmp((char*)trampoline + origin_offset_ + codelen, (char*)addr + codelen);
-
-
-	//modify target code
-	//let target jmp to trampoline code
-	len = mhcode_asm_jmp(addr, trampoline);
-	if (codelen > len) {
-		memset((char*)addr + len, 0x90, codelen - len);
-	}
-
-	result->target = addr;
-	result->codelen = codelen;
-	result->trampoline = trampoline;
-	result->nop = 0x90909090;
-	result->nop2 = 0x90909090;
-	return result;
+int mhcode_make_context_handler(void* codebuf, mhcode_context_handler func) {
+	memcpy(codebuf, handler_trampoline_, sizeof(handler_trampoline_));
+	mhcode_make_call((char*)codebuf + handler_func_offset_, func);
+	return sizeof(handler_trampoline_);
 }
-
-
-void mhcode_hook_destroy(mhcode_hook_t hook) {
-	mhcode_hook_data* result = (mhcode_hook_data*)hook;
-
-	//restore orgin code
-	void* orgincache = (char*)(result->trampoline) + origin_offset_;
-	memcpy(result->target, orgincache, result->codelen);
-
-	//free memory
-	mhcode_free(result);
-}
-
 
 
 intptr_t mhcode_get_stack_value(void* context, int offset) {
@@ -153,7 +93,7 @@ void mhcode_set_stack_value(void* context, int offset, intptr_t value) {
 }
 
 // x86 code
-int mhcode_asm_jmp(void* addr, void* jmpto) {
+int mhcode_make_jmp(void* addr, void* jmpto) {
 	intptr_t offset = (intptr_t)jmpto - (intptr_t)addr - 5;
 	unsigned char* buf = (unsigned char*)addr;
 	buf[0] = 0xE9;
@@ -161,10 +101,68 @@ int mhcode_asm_jmp(void* addr, void* jmpto) {
 	return 5;
 }
 
-int mhcode_asm_call(void* addr, void* jmpto) {
+int mhcode_make_call(void* addr, void* jmpto) {
 	intptr_t offset = (intptr_t)jmpto - (intptr_t)addr - 5;
 	unsigned char* buf = (unsigned char*)addr;
 	buf[0] = 0xE8;
 	*(intptr_t*)(buf + 1) = offset;
 	return 5;
+}
+
+
+typedef struct _mhcode_hook_data {
+	void* target;
+	size_t codelen;
+	void* trampoline;
+	size_t nop;
+	size_t nop2;
+}mhcode_hook_data;
+
+
+mhcode_hook_t mhcode_hook_create(void* addr, size_t codelen, mhcode_context_handler func) {
+	mhcode_hook_data* result;
+	void* trampoline;
+	size_t len;
+	if (codelen < 5)return NULL;
+
+	result = mhcode_malloc(sizeof(mhcode_hook_data) + sizeof(handler_trampoline_) + codelen + 32);
+	if (!result) { return NULL; }
+	trampoline = (char*)result + sizeof(mhcode_hook_data);
+
+	mhcode_mprotect(addr, codelen, PROT_READ | PROT_WRITE | PROT_EXEC);
+
+	//1 gen trampoline code
+	len = mhcode_make_context_handler(trampoline, func);
+
+	//2. run code of target
+	memcpy((char*)trampoline + len, addr, codelen);
+
+	//3. jmp bakc to target + codelen
+	mhcode_make_jmp((char*)trampoline + len + codelen, (char*)addr + codelen);
+
+	//modify target code
+	//let target jmp to trampoline code
+	len = mhcode_make_jmp(addr, trampoline);
+	if (codelen > len) {
+		memset((char*)addr + len, 0x90, codelen - len);
+	}
+
+	result->target = addr;
+	result->codelen = codelen;
+	result->trampoline = trampoline;
+	result->nop = 0x90909090;
+	result->nop2 = 0x90909090;
+	return result;
+}
+
+
+void mhcode_hook_destroy(mhcode_hook_t hook) {
+	mhcode_hook_data* result = (mhcode_hook_data*)hook;
+
+	//restore orgin code
+	void* orgincache = (char*)(result->trampoline) + sizeof(handler_trampoline_);
+	memcpy(result->target, orgincache, result->codelen);
+
+	//free memory
+	mhcode_free(result);
 }
