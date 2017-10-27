@@ -110,6 +110,57 @@ int mhcode_make_call(void* addr, void* jmpto) {
 }
 
 
+
+intptr_t mhcode_call_cdecl(void* addr, int argc, intptr_t* argv) {
+	intptr_t result = 0;
+	int off = argc * 4;
+	for (int i = argc-1; i >=0; i--) {
+		intptr_t argvn = argv[i];
+		__asm {
+			push argvn;
+		}
+	}
+	__asm {
+		call addr;
+		add esp, off;
+		mov result, eax;
+	}	
+	return result;
+}
+
+intptr_t mhcode_call_stdcall(void* addr, int argc, intptr_t* argv) {
+	intptr_t result = 0;	
+	for (int i = argc - 1; i >= 0; i--) {
+		intptr_t argvn = argv[i];
+		__asm {
+			push argvn;
+		}
+	}
+	__asm {
+		call addr;		
+		mov result,eax;
+	}
+	return result;
+}
+
+intptr_t mhcode_call_thiscall(void* addr, void* pthis, int argc, intptr_t* argv) {
+	intptr_t result = 0;
+	int off = argc * 4;
+	for (int i = argc - 1; i >= 0; i--) {
+		intptr_t argvn = argv[i];
+		__asm {
+			push argvn;
+		}
+	}
+	__asm {
+		mov ecx, pthis;
+		call addr;		
+		mov result, eax;
+	}
+	return result;
+}
+
+
 typedef struct _mhcode_hook_data {
 	void* target;
 	size_t codelen;
@@ -166,3 +217,7 @@ void mhcode_hook_destroy(mhcode_hook_t hook) {
 	//free memory
 	mhcode_free(result);
 }
+
+
+
+

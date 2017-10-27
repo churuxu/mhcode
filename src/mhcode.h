@@ -74,6 +74,17 @@ extern "C" {
 	void mhcode_set_stack_value(void* context, int offset, intptr_t value);
 
 
+	/** push value to stack */
+	//void mhcode_push_stack(intptr_t value);
+
+	/** pop value from stack */
+	//void mhcode_pop_stack();
+
+	/** call address as function */
+	intptr_t mhcode_call_cdecl(void* addr, int argc, intptr_t* argv);
+	intptr_t mhcode_call_stdcall(void* addr, int argc, intptr_t* argv);	
+	intptr_t mhcode_call_thiscall(void* addr, void* pthis, int argc, intptr_t* argv);
+
 
 	typedef void* mhcode_hook_t;
 
