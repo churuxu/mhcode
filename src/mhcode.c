@@ -58,21 +58,25 @@ const unsigned char x86_handler_trampoline_[] = {
 	0x9C,                   // pushfd
 	0x8B, 0xC4,             // mov         eax,esp
 	0x83, 0xC0,0x04,        // add         eax,4
+	0x68, 0x90,0x90,0x90,0x90,// push        0x11223344 (udata)
 	0x50,                   // push        eax
 	0xE8, 0x90,0x90,0x90,0x90,//call       context handler function
+	0x58,                   //pop         eax
 	0x58,                   //pop         eax
 	0x9D,                   //popfd
 	0x61,                   //popad
 };
 
-const size_t x86_handler_func_offset_ = 8;
+const size_t x86_handler_func_offset_ = 13;
+const size_t x86_handler_udata_offset_ = 8;
 
 #define handler_trampoline_ x86_handler_trampoline_
 #define handler_func_offset_ x86_handler_func_offset_
+#define handler_udata_offset_ x86_handler_udata_offset_
 
-
-int mhcode_make_context_handler(void* codebuf, mhcode_context_handler func) {
+int mhcode_make_context_handler(void* codebuf, mhcode_context_handler func, void* udata) {
 	memcpy(codebuf, handler_trampoline_, sizeof(handler_trampoline_));
+	memcpy((char*)codebuf + handler_udata_offset_, &udata, sizeof(void*));
 	mhcode_make_call((char*)codebuf + handler_func_offset_, func);
 	return sizeof(handler_trampoline_);
 }
@@ -170,7 +174,7 @@ typedef struct _mhcode_hook_data {
 }mhcode_hook_data;
 
 
-mhcode_hook_t mhcode_hook_create(void* addr, size_t codelen, mhcode_context_handler func) {
+mhcode_hook_t mhcode_hook_create(void* addr, size_t codelen, mhcode_context_handler func, void* udata) {
 	mhcode_hook_data* result;
 	void* trampoline;
 	size_t len;
@@ -183,7 +187,7 @@ mhcode_hook_t mhcode_hook_create(void* addr, size_t codelen, mhcode_context_hand
 	mhcode_mprotect(addr, codelen, PROT_READ | PROT_WRITE | PROT_EXEC);
 
 	//1 gen trampoline code
-	len = mhcode_make_context_handler(trampoline, func);
+	len = mhcode_make_context_handler(trampoline, func, udata);
 
 	//2. run code of target
 	memcpy((char*)trampoline + len, addr, codelen);

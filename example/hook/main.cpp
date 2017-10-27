@@ -23,13 +23,13 @@ public:
 };
 
 
-static void FunctionHooked(void* ctx) {
+static void FunctionHooked(void* ctx, void* udata) {
 	int v1 = (int)mhcode_get_stack_value(ctx, 4);
 	intptr_t iv2 = mhcode_get_stack_value(ctx, 8);
 	char* v3 = (char*)mhcode_get_stack_value(ctx, 12);
 	float* pv2 = (float*)&iv2;
 	float v2 = *pv2;
-	printf("get value in hooked function: %d %f %s\n", v1, v2, v3);
+	printf("get value in hooked function: %d %f %s  udata:%p\n", v1, v2, v3, udata);
 	mhcode_set_stack_value(ctx, 12, (intptr_t)"hooked");
 }
 
@@ -42,6 +42,7 @@ int main() {
 
 	void (SomeClass::* member)(int a, float b, char* c) = &SomeClass::ThiscallFunction;
 
+	//exit(0x12345678);
 
 	printf("=====befor hook=====\n");
 
@@ -49,10 +50,10 @@ int main() {
 	StdcallFunction(222, 22.2f, "hello2");
 	c.ThiscallFunction(333, 0.333f, "hello3");
 
-	hook1 = mhcode_hook_create(CdeclFunction, 6, FunctionHooked);
-	hook2 = mhcode_hook_create(StdcallFunction, 6, FunctionHooked);
+	hook1 = mhcode_hook_create(CdeclFunction, 6, FunctionHooked, (void*)0x12345678);
+	hook2 = mhcode_hook_create(StdcallFunction, 6, FunctionHooked, (void*)0x87654321);
 #ifdef _DEBUG
-	hook3 = mhcode_hook_create(*(void**)&member, 11, FunctionHooked);
+	hook3 = mhcode_hook_create(*(void**)&member, 11, FunctionHooked, NULL);
 #else
 	hook3 = mhcode_hook_create(*(void**)&member, 6, FunctionHooked);
 #endif

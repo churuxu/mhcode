@@ -54,12 +54,12 @@ extern "C" {
 	/** context passed to hook_function_t */
 	typedef mhcode_context_x86 mhcode_context;
 
-	typedef void(__cdecl *mhcode_context_handler)(void* context);
+	typedef void(__cdecl *mhcode_context_handler)(void* context, void* udata);
 
 	/** make a function to call mhcode_context_handler_t and pass current thread context, return writed code len	
 	this codebuf can pass to other hook library	when append code to jmp trampoline
 	*/
-	int mhcode_make_context_handler(void* codebuf, mhcode_context_handler func);
+	int mhcode_make_context_handler(void* codebuf, mhcode_context_handler func, void* udata);
 
 	/** make 'jmp' mechine code, return writed code len */
 	int mhcode_make_jmp(void* codebuf, void* jmpto);
@@ -73,12 +73,6 @@ extern "C" {
 	/** set stack value in hook function */
 	void mhcode_set_stack_value(void* context, int offset, intptr_t value);
 
-
-	/** push value to stack */
-	//void mhcode_push_stack(intptr_t value);
-
-	/** pop value from stack */
-	//void mhcode_pop_stack();
 
 	/** call address as function */
 	intptr_t mhcode_call_cdecl(void* addr, int argc, intptr_t* argv);
@@ -94,11 +88,10 @@ extern "C" {
 	'codelen' must > 5(x86)
 	use disassembly tools to known 'codelen' of target
 	*/
-	mhcode_hook_t mhcode_hook_create(void* targetaddr, size_t codelen, mhcode_context_handler func);
+	mhcode_hook_t mhcode_hook_create(void* targetaddr, size_t codelen, mhcode_context_handler func, void* udata);
 
 	/** destroy hook */
 	void mhcode_hook_destroy(mhcode_hook_t hook);
-
 
 #ifdef __cplusplus
 }

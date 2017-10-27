@@ -10,12 +10,12 @@
 
 
 
-int DetourAttachAddress(PVOID* target, mhcode_context_handler func, PVOID* outctx) {
+int DetourAttachAddress(PVOID* target, mhcode_context_handler func, PVOID* outctx, void* udata) {
 	LONG ret = 0;
 	int offset = 0;
 	PDETOUR_TRAMPOLINE trampoline = NULL;
 	void* code = mhcode_malloc(64);
-	offset = mhcode_make_context_handler(code, func);
+	offset = mhcode_make_context_handler(code, func, udata);
 	ret = DetourAttachEx(target, code, &trampoline, NULL, NULL);
 	if (ret)return ret;
 	mhcode_make_jmp((char*)code + offset, trampoline);
@@ -36,13 +36,13 @@ NOINLINE static void __cdecl CdeclFunction(int a, float b, char* c) {
 }
 
 
-static void FunctionHooked(void* ctx) {
+static void FunctionHooked(void* ctx, void* udata) {
 	int v1 = (int)mhcode_get_stack_value(ctx, 4);
 	intptr_t iv2 = mhcode_get_stack_value(ctx, 8);
 	char* v3 = (char*)mhcode_get_stack_value(ctx, 12);
 	float* pv2 = (float*)&iv2;
 	float v2 = *pv2;
-	printf("get value in hooked function: %d %f %s\n", v1, v2, v3);
+	printf("get value in hooked function: %d %f %s udata:%p\n", v1, v2, v3, udata);
 	mhcode_set_stack_value(ctx, 12, (intptr_t)"hooked");
 }
 
@@ -58,7 +58,7 @@ void Hook() {
 	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());
 
-	DetourAttachAddress((PVOID*)&oldfunc_, FunctionHooked, &hookctx_);
+	DetourAttachAddress((PVOID*)&oldfunc_, FunctionHooked, &hookctx_, (void*)0x12345678);
 
 	DetourTransactionCommit();	
 }
