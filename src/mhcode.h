@@ -77,7 +77,7 @@ extern "C" {
 	/** call address as function */
 	intptr_t mhcode_call_cdecl(void* addr, int argc, intptr_t* argv);
 	intptr_t mhcode_call_stdcall(void* addr, int argc, intptr_t* argv);	
-	intptr_t mhcode_call_thiscall(void* addr, void* pthis, int argc, intptr_t* argv);
+	intptr_t mhcode_call_thiscall(void* addr, int argc, intptr_t* argv); //pass this to argv[0]
 
 
 	typedef void* mhcode_hook_t;
