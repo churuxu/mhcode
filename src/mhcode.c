@@ -149,7 +149,7 @@ intptr_t mhcode_call_stdcall(void* addr, int argc, intptr_t* argv) {
 
 intptr_t mhcode_call_thiscall(void* addr, int argc, intptr_t* argv) {
 	intptr_t result = 0;
-	void* pthis = argv[0];
+	void* pthis = (void*)argv[0];
 	int off = argc * 4;
 	for (int i = argc - 1; i > 0; i--) {
 		intptr_t argvn = argv[i];
