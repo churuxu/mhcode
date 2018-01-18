@@ -115,6 +115,8 @@ int mhcode_make_call(void* addr, void* jmpto) {
 
 
 
+#pragma runtime_checks("sc", off)   //no RTC check
+
 intptr_t mhcode_call_cdecl(void* addr, int argc, intptr_t* argv) {
 	intptr_t result = 0;
 	int off = argc * 4;
@@ -151,6 +153,7 @@ intptr_t mhcode_call_thiscall(void* addr, int argc, intptr_t* argv) {
 	intptr_t result = 0;
 	void* pthis = (void*)argv[0];
 	int off = argc * 4;
+	if (argc < 1)return 0;
 	for (int i = argc - 1; i > 0; i--) {
 		intptr_t argvn = argv[i];
 		__asm {
@@ -164,6 +167,30 @@ intptr_t mhcode_call_thiscall(void* addr, int argc, intptr_t* argv) {
 	}
 	return result;
 }
+
+
+intptr_t mhcode_call_fastcall(void* addr, int argc, intptr_t* argv) {	
+	void* aecx = (void*)argv[0];
+	void* aedx = (void*)argv[1];
+	intptr_t result = 0;
+	int off = argc * 4;	
+	if (argc < 2)return 0;
+	for (int i = argc - 1; i > 1; i--) {
+		intptr_t argvn = argv[i];
+		__asm {
+			push argvn;
+		}
+	}
+	__asm {
+		mov ecx, aecx;
+		mov edx, aedx;
+		call addr;
+		mov result, eax;
+	}
+	return result;
+}
+
+#pragma runtime_checks("sc", restore)
 
 
 typedef struct _mhcode_hook_data {
